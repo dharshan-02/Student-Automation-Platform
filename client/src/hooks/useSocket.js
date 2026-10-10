@@ -1,0 +1,45 @@
+import { useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
+import { useAuth } from './useAuth';
+
+const getBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  return apiUrl ? apiUrl.replace(/\/api$/, '') : 'http://localhost:5000';
+};
+
+export const useSocket = (url = import.meta.env.VITE_SOCKET_URL || getBaseUrl()) => {
+  const { user } = useAuth();
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    // Only connect if user is logged in
+    if (!user) return;
+
+    // Get the JWT token from localStorage
+    const token = localStorage.getItem('token');
+    
+    if (!token) return;
+
+    socketRef.current = io(url, {
+      auth: {
+        token
+      }
+    });
+
+    socketRef.current.on('connect', () => {
+      console.log('🔌 WebSocket connected');
+    });
+
+    socketRef.current.on('connect_error', (err) => {
+      console.error('WebSocket connection error:', err.message);
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [user, url]);
+
+  return socketRef.current;
+};
